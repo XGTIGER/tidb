@@ -702,13 +702,13 @@ func (worker *copIteratorWorker) handleTaskOnce(bo *Backoffer, task *copTask, ch
 	if task.cmdType == tikvrpc.CmdCop && worker.store.coprCache != nil && worker.req.Cacheable && len(copReq.Ranges) < 10 {
 		cKey, err := coprCacheBuildKey(&copReq)
 		if err == nil {
+			cacheKey = cKey
 			cValue := worker.store.coprCache.Get(cKey)
 			if cValue != nil && cValue.RegionID == task.region.id && cValue.TimeStamp <= worker.req.StartTs {
 				// Append cache version to the request to skip Coprocessor computation if possible
 				// when request result is cached
 				copReq.IsCacheEnabled = true
 				copReq.CacheIfMatchVersion = cValue.RegionDataVersion
-				cacheKey = cKey
 				cacheValue = cValue
 			}
 		} else {
@@ -974,6 +974,7 @@ func (worker *copIteratorWorker) handleCopResponse(bo *Backoffer, rpcCtx *RPCCon
 				copy(data, resp.pbResp.Data)
 
 				newCacheValue := coprCacheValue{
+					Key:               cacheKey,
 					Data:              data,
 					TimeStamp:         worker.req.StartTs,
 					RegionID:          task.region.id,
